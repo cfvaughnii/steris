@@ -9,7 +9,6 @@
       var api_key = "";
       var session_id = "";
       var token = "";
-      var edge_serial_number = "EDGE-658087";
       var globalAudioLevel = 0;
       var publisherVideoState = true;
       var publisherAudioState = false;
@@ -67,7 +66,7 @@
               } else {
                 var subscribeElement = document.getElementById(subscriber.id);
                 subscribeElement.style.top = "0px";
-                subscribeElement.style.left = "px";
+                subscribeElement.style.left = "0px";
                 subscribeElement.style.height = them_height;
                 subscribeElement.style.width = them_width;
                 var ot_edge =$("[class*='OT_edge-bar-item']");
@@ -239,7 +238,6 @@
       }
 
       var videoCall = function(caller_id) { 
-
         voiceCallOnly = false;
         send_message("ringingVideo", JSON.stringify({"token":token, "caller_id":caller_id}));
       }
