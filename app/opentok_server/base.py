@@ -2,6 +2,7 @@
 __author__ = "Frank Vaughn(frankv@nytec.com)"
 __version__ = "$Revision: 1.0 $"
 
+import os
 import csv
 import json
 import time
@@ -10,7 +11,7 @@ import platform
 import subprocess
 import logging.handlers
 
-data_location = "./static/ajax/"
+data_location = "./app/static/ajax/"
 json_fname = "edison.json"
 LOG_LEVEL = 10
 """ Set up baseline logging functionality """
@@ -92,7 +93,8 @@ def readData(fName):
             data = json.load(fp)
         return data
     except Exception, msg:
-        Log("error", "readCsvData " + str(Exception)+str(msg))
+        Log("error","cwd "+os.getcwd())
+        Log("error", "readData " + str(Exception)+str(msg))
         return None
 
 def writeData(fName, data):

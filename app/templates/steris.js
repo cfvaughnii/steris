@@ -9,17 +9,37 @@
       var api_key = "";
       var session_id = "";
       var token = "";
+      var edge_serial_number = "EDGE-658087";
       var voiceCallOn = false;
+      var adobe = false;
+      var globalAudioLevel = 0;
+
+
+      var doAdobe = function(state) {
+        var comp = AdobeEdge.getComposition(edge_serial_number);
+        var edge_stage = comp.getStage();
+        edge_stage.stop(state);
+      }
 
       function initialize_session() {
-        AppAPI.getSessionToken().then(function(session_token_arr) {
-          console.log("getSessionToken: " + session_token_arr);
-          api_key = session_token_arr[0];
-          session_id = session_token_arr[1];
-          token = session_token_arr[2];
-          session = OT.initSession(api_key, session_id);
-          do_connect_session();
-        });
+        $.ajax({url: "/api",
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify({"jsonrpc": "2.0",
+                "method": "getSessionToken", "params": [], "id": "1",
+            }),
+            dataType: "json",
+            success: function(response) {
+                var session_token_arr = response.result;
+                console.log("getSessionToken: " + session_token_arr);
+                api_key = session_token_arr[0];
+                session_id = session_token_arr[1];
+                token = session_token_arr[2];
+                session = OT.initSession(api_key, session_id);
+                do_connect_session();
+                startPublish(true);
+            },
+        });      
       };
       /*
           Connect session using api_key, session_id, token
@@ -51,27 +71,74 @@
               if (error) {
                 console.log(error);
               } else {
+                subscriber.setStyle('audioLevelDisplayMode', 'off');
+                var movingAvg = null;
+                subscriber.on('audioLevelUpdated', function(event) {
+                  if (movingAvg === null || movingAvg <= event.audioLevel) {
+                    movingAvg = event.audioLevel;
+                  } else {
+                    movingAvg = 0.7 * movingAvg + 0.3 * event.audioLevel;
+                  }
+               
+                  // Take the log of the movingAvg to 
+                  // map the level from -60 - 0 dBm
+                  var logLevel = Math.log(movingAvg)*10.0;
+                  console.log("logLevel "+logLevel);
+                  setTimeout(proximityChange,200);
+                  //document.getElementById('subscriberMeter').value = logLevel;
+                });
+                subscriber.setStyle("nameDisplayMode","off");
+                subscriber.setStyle("bugDisplayMode","off");
+                subscriber.setStyle("buttonDisplayMode","off");
+                subscriber.setStyle("showControlBar","off");
+                subscriber.setStyle("showMicButton","off");
+                subscriber.setStyle("showSettingsButton","off");
+
                 var subscribeElement = document.getElementById(subscriber.id);
                 subscribeElement.style.top = "0px";
                 subscribeElement.style.left = "75px";
                 subscribeElement.style.height = them_height;
                 subscribeElement.style.width = them_width;
+                var ot_edge =$("[class*='OT_edge-bar-item']");
+                ot_edge.hide();
                 console.log("Subscriber added.");
                 }
               });
             });
 
             session.on("streamDestroyed", function(event) {
-              console.log("streamDestroyed")
+              //alert("streamDestroyed")
             });
 
+            session.on("streamPropertyChanged", function (event) {
+              var subscribers = session.getSubscribersForStream(event.stream);
+              for (var i = 0; i < subscribers.length; i++) {
+                var s = subscribers[i];
+                s.setStyle("nameDisplayMode","off");
+                s.setStyle("bugDisplayMode","off");
+                s.setStyle("buttonDisplayMode","off");
+                s.setStyle("showControlBar","off");
+                s.setStyle("showMicButton","off");
+                s.setStyle("showSettingsButton","off");
+                console.log(s.guid + " " + event.changedProperty +  " hasVideo changed ");
+              }
+            });
             /*
-            Send the  information received from 'them' to the GUI element
+            proximity information received from 'them'
+            */       
+            session.on("signal:proximity", function(event) {
+             console.log("proximity " + event.data);
+             //The GUI call goes here
+            });
+            /*
+            Send the proximity information received from 'them' to the GUI element
             */       
             session.on("signal:ringingVideo", function(event) {
               voiceCallOn = false;
               sent_token = $.parseJSON(event.data);
               if (sent_token.token != token) {
+                if (adobe)
+                  doAdobe("Ringing");
                 console.log("ringing " + event.data);
               }
             });
@@ -82,6 +149,8 @@
               voiceCallOn = true;
               sent_token = $.parseJSON(event.data);
               if (sent_token.token != token) {
+                if (adobe)
+                  doAdobe("Ringing");
                 console.log("ringing " + event.data);
               }
             });
@@ -106,6 +175,8 @@
               if (sent_token.token != token) {
                 console.log("accepted " + event.data);
                 startPublish(true);
+                if (adobe)
+                  doAdobe("Connected");
               }
             });
             
@@ -114,6 +185,8 @@
               if (sent_token.token != token) {
                 console.log("accepted " + event.data);
                 startPublish(false);
+                if (adobe)
+                  doAdobe("Connected");
               }
             });
           }
@@ -139,13 +212,16 @@
             // You may want to notify the user.
           } else {
             console.log('Publisher initialized.');
+            publisher.setStyle("nameDisplayMode","off");
+            publisher.setStyle("bugDisplayMode","off");
+            publisher.setStyle("buttonDisplayMode","off");
             var pubElement = document.getElementById(publisher.id);
             pubElement.style.top = "250px";
             pubElement.style.left = " 75px";
             pubElement.style.height = us_height;
             pubElement.style.width = us_width;
             session.publish(publisher);
-            if (!video) {
+            if (video != null && !video) {
               publisher.publishVideo(false);
             }
             else {
@@ -191,11 +267,15 @@
 
       var videoCall = function(session, publisher, subscriber) { 
         voiceCallOn = false;
+        if (adobe)
+          doAdobe("Connecting");
         send_message("ringingVideo", JSON.stringify({"token":token}));
       }
 
       var voiceCall = function() { 
         voiceCallOn = true;
+        if (adobe)
+          doAdobe("Connecting");
         send_message("ringingVoice", JSON.stringify({"token":token}));
       }
       /*
@@ -206,6 +286,8 @@
           3) Show the OT_us_view
       */
       var acceptCall = function() { 
+        if (adobe)
+          doAdobe("Connected");
         do_publish();
         if (voiceCallOn)
           send_message("acceptedAudio",JSON.stringify({"token":token}));
@@ -225,15 +307,8 @@
       var hangupCall = function() { 
         send_message("hangupSubscriber",JSON.stringify({"token":token}));
         send_message("hangupPublisher",JSON.stringify({"token":token}));
+        if (adobe)
+          doAdobe("Near");
       }
 
-      var proximityChange = function() {
-        AppAPI.getFaceProximity().then(function(faces) {
-          var arrayLength = faces.length;
-          for (var i = 0; i < arrayLength; i++) {
-            send_message("proximity",JSON.stringify({"face":faces[i][2]}));
-            break;
-          }
-        });
-      }
 
