@@ -1,9 +1,13 @@
+import os
 from flask import render_template, flash, redirect, session, url_for, request, g
 from flask.ext.login import login_user, logout_user, current_user, \
     login_required
 from app import app, db, lm, oid
 from .forms import LoginForm
 from .models import User
+
+if not os.path.exists("tmp"):
+    os.makedirs("tmp")
 
 @lm.user_loader
 def load_user(id):
