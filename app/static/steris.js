@@ -9,13 +9,15 @@
       var api_key = "";
       var session_id = "";
       var token = "";
+      var nickname = "";
       var globalAudioLevel = 0;
       var publisherVideoState = true;
       var publisherAudioState = false;
       var voiceCallOnly = false;
 
 
-      function initialize_session() {
+      function initialize_session(name) {
+        nickname = name;
         $.ajax({url: "/api",
             type: "POST",
             contentType: "application/json",
@@ -69,8 +71,8 @@
                 subscribeElement.style.left = "0px";
                 subscribeElement.style.height = them_height;
                 subscribeElement.style.width = them_width;
-                var ot_edge =$("[class*='OT_edge-bar-item']");
-                ot_edge.hide();
+                //var ot_edge =$("[class*='OT_edge-bar-item']");
+                //ot_edge.hide();
                 console.log("Subscriber added.");
                 }
               });
@@ -109,9 +111,12 @@
 
                 }              
                 caller_id = sent_token.caller_id;
-                $('#basicModal').find('.modal-title').text('Call from ' + caller_id);
-                $('#basicModal').modal(options);              
-                $('#basicModal').show();              
+                calling = sent_token.calling;
+                if (calling == nickname) {
+                  $('#basicModal').find('.modal-title').text('Call from ' + caller_id);
+                  $('#basicModal').modal(options);              
+                  $('#basicModal').show();              
+                }
               }
             });
             /*
@@ -192,11 +197,11 @@
             // You may want to notify the user.
           } else {
             console.log('Publisher initialized.');
-            var pubElement = document.getElementById(publisher.id);
-            pubElement.style.top = "375px";
-            pubElement.style.left = " 360px";
-            pubElement.style.height = us_height;
-            pubElement.style.width = us_width;
+            //var pubElement = document.getElementById(publisher.id);
+            //pubElement.style.top = "375px";
+            //pubElement.style.left = " 360px";
+            //pubElement.style.height = us_height;
+            //pubElement.style.width = us_width;
             session.publish(publisher);
           }
         });
@@ -237,9 +242,9 @@
         return !voiceCallOnly;
       }
 
-      var videoCall = function(caller_id) { 
+      var videoCall = function(caller_id, calling) { 
         voiceCallOnly = false;
-        send_message("ringingVideo", JSON.stringify({"token":token, "caller_id":caller_id}));
+        send_message("ringingVideo", JSON.stringify({"token":token, "caller_id":caller_id,"calling":calling}));
       }
 
       var voiceCall = function(caller_id) { 
